@@ -53,9 +53,6 @@ void task_init(int id, void (*entry)(void))
  * ------------------------------------------------------------------ */
 int pick_next_task(void)
 {
-    /* TODO: advance current_task to the next task, wrapping around
-     *       NUM_TASKS, and return the new value. (current_task is
-     *       the global above — update it AND return it.) */
     current_task = ((current_task+1) % NUM_TASKS);
     return current_task;
 }
