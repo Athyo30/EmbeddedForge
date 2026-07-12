@@ -5,6 +5,19 @@ targeting Cortex-M3 on QEMU. Five parts, each building on the last: a libc
 reimplementation, bare-metal startup, an interrupt-driven driver, a
 bootloader, and a context-switching scheduler.
 
+## Structure
+
+```
+part1_libc/          libc reimplementation + a bump and free-list allocator
+                      (host build, no hardware/emulator needed)
+part2_startup/        bare-metal reset handler: .data copy, .bss zero, vector table
+part3_drivers/        interrupt-driven UART RX with a lock-free ring buffer
+part4_bootloader/     vector table relocation + jump to a second application image
+part5_concurrency/     cooperative round-robin scheduler with a hand-rolled context switch
+setup.sh              installs the toolchain
+DEBUGGING_JOURNAL.md  full bug-by-bug write-up
+```
+
 ## What I did vs. what was scaffolded
 
 I implemented every function in every part — the allocators, the UART
@@ -51,19 +64,6 @@ journal.
   cooperate** — arguments in r0/r1, callee-saved r4-r11 — the same
   convention underwrites the bootloader's asm jump and the scheduler's
   context switch.
-
-## Structure
-
-```
-part1_libc/          libc reimplementation + a bump and free-list allocator
-                      (host build, no hardware/emulator needed)
-part2_startup/        bare-metal reset handler: .data copy, .bss zero, vector table
-part3_drivers/        interrupt-driven UART RX with a lock-free ring buffer
-part4_bootloader/     vector table relocation + jump to a second application image
-part5_concurrency/     cooperative round-robin scheduler with a hand-rolled context switch
-setup.sh              installs the toolchain
-DEBUGGING_JOURNAL.md  full bug-by-bug write-up
-```
 
 ## Toolchain
 
