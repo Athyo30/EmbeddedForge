@@ -1,64 +1,78 @@
 # embedded-forge
 
-A build-to-learn track for the hardware/software boundary. You write the
-code; the infra (build system, linker script, QEMU targets, test harness,
-vector tables) is already done so you spend zero time on setup.
+A hands-on bare-metal embedded systems study track in C and ARM assembly,
+targeting Cortex-M3 on QEMU. Five parts, each building on the last: a libc
+reimplementation, bare-metal startup, an interrupt-driven driver, a
+bootloader, and a context-switching scheduler.
 
-Every file is stubbed with the contract, the edge cases, and a spot to write your approach *before*
-you code. The tests define correctness — make them pass.
+What I did vs. what was scaffolded
 
-## Quickstart
+I implemented every function in every part — the allocators, the UART
+driver, the bootloader's validation and VTOR relocation logic, the
+scheduler's switching policy — and debugged the real bugs that came up
+along the way (a segfault from unsigned integer underflow, a linked-list
+corruption bug that passed its own test suite, a race condition between
+an ISR and main, among others).
 
-```bash
-./setup.sh                 # installs gcc, arm-none-eabi-gcc, qemu (once)
-cd part1_libc && make test # start here — instant pass/fail loop
-```
+Build tooling was AI-scaffolded so study time went into the concepts
+rather than environment setup: linker scripts, Makefiles, the test
+harness, and a few pieces of ARM assembly boilerplate too fiddly to be a
+good place to learn by trial and error (the naked jump-to-application
+function in Part 4, the register save/restore skeleton in Part 5).
+Full write-up of every bug, with root cause and fix, is in
+DEBUGGING_JOURNAL.md.
 
-## Parts
+A preemptive scheduling extension (SysTick + PendSV, forcing a context
+switch without an explicit yield()) was attempted and deliberately
+shelved rather than shipped half-working — noted at the bottom of the
+journal.
 
-- **part1_libc/** — reimplement `memset/memcpy/memmove/memcmp`,
-  `strlen/strcpy/strncpy/strcmp`, then a **bump allocator** and a
-  **free-list allocator** (split + coalesce). Host build, instant tests.
-  `make test`, and `make asan` to catch pointer bugs in the allocator.
-- **part2_startup/** — write the **reset handler**: copy `.data` from
-  flash to RAM, zero `.bss`, call `main`. Runs on QEMU's Cortex-M3.
-  `make qemu` — it prints whether each step worked. (Ctrl-A then x quits.)
-- **part3_drivers/** — write an **interrupt-driven UART RX driver** with a
-  lock-free ring buffer. This is where `volatile` / atomicity / memory
-  ordering stop being theory. `make qemu`, then type — it echoes.
-- **part4_bootloader/** — write the **bootloader handoff**: validate an
-  application image's vector table, relocate `SCB->VTOR` to it, and jump
-  into it. This is the real mechanism behind firmware updates and
-  multi-stage boot. `make qemu` — prints the app's SP/PC, relocates,
-  jumps, and the app confirms VTOR landed correctly. (Note: to run in
-  QEMU with a single `-kernel` load, both "images" are linked into one
-  ELF at two different flash addresses — a real system would flash them
-  separately. Said plainly in the linker script.)
-- **part5_concurrency/** — build a **cooperative round-robin scheduler**:
-  two tasks, each with its own stack, switched via an explicit `yield()`
-  that saves/restores registers and swaps the stack pointer by hand. This
-  is a real context switch — same idea as a coroutine/fiber library.
-  `make qemu` — correct output is `ABABABAB...` forever, proving both
-  tasks' state survives being paused and resumed. The scheduling *policy*
-  (round-robin) is your exercise; the register save/restore mechanics are
-  provided, since getting that asm subtly wrong fails silently rather
-  than with a clear error — not a good place to learn by trial and error.
-
-## Beyond this track
-
-Preemptive scheduling (a timer interrupt forces a switch even if a task
-never calls `yield()`) is the natural next step after Part 5, using
-SysTick + PendSV + a PSP/MSP stack split. It's deliberately not scaffolded
-here — bootstrapping that first switch correctly is genuinely fiddly even
-for experienced embedded engineers (real RTOS ports carry a lot of care
-right at that handoff). Worth reading FreeRTOS's Cortex-M `port.c` once
-Part 5 feels easy, as a next real target rather than a scaffolded exercise.
+Key learnings
 
 
-## Why QEMU, not your STM32
+void* used to hold a byte count or an integer is a type-category
+error, not a style nit — it showed up three separate times (an
+allocator, a stack offset, a peripheral register write) before the
+pattern was obvious.
+Unsigned loop counters can't go negative — a backward loop bounded
+by i >= 0 on a size_t never terminates; it underflows and wraps
+instead, which is a segfault waiting to happen, not a warning to
+ignore.
+Passing tests only prove what they exercise. A free-list split bug
+that truncated the block list was invisible for several test runs
+because every allocation happened to land on the list's tail.
+Lock-free doesn't mean uncoordinated — a single-producer/single-
+consumer ring buffer is safe without a mutex only because each shared
+field has exactly one writer; a shared counter updated from both an ISR
+and main breaks that invariant immediately.
+A bootloader is a program that fakes a hardware reset — jumping to
+an application means setting SP/PC and relocating SCB->VTOR, two
+independent mechanisms that are easy to only do one of.
+AAPCS, not compiler magic, is what lets C and hand-written assembly
+cooperate — arguments in r0/r1, callee-saved r4-r11 — the same
+convention underwrites the bootloader's asm jump and the scheduler's
+context switch.
 
-Fastest possible edit→run loop, no flashing, no ST-Link, fully
-reproducible. Everything here maps directly onto real Cortex-M silicon —
-when you want hardware realism (real clock/pin init, a logic analyzer on
-the wire), the STM32 track is a one-file swap of the toolchain and the
-register base addresses.
+
+Structure
+
+part1_libc/          libc reimplementation + a bump and free-list allocator
+                      (host build, no hardware/emulator needed)
+part2_startup/        bare-metal reset handler: .data copy, .bss zero, vector table
+part3_drivers/        interrupt-driven UART RX with a lock-free ring buffer
+part4_bootloader/     vector table relocation + jump to a second application image
+part5_concurrency/     cooperative round-robin scheduler with a hand-rolled context switch
+setup.sh              installs the toolchain
+DEBUGGING_JOURNAL.md  full bug-by-bug write-up
+
+Toolchain
+
+
+gcc / make - host build for Part 1 (no target hardware involved)
+arm-none-eabi-gcc - cross-compiler for Cortex-M3, Parts 2-5
+qemu-system-arm - emulates the lm3s6965evb board (no physical
+hardware needed for any part)
+
+
+Tested on WSL2 (Ubuntu) and native Linux. Run ./setup.sh once, then
+cd partN_* && make test (Part 1) or make qemu (Parts 2-5).
