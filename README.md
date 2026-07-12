@@ -4,8 +4,7 @@ A build-to-learn track for the hardware/software boundary. You write the
 code; the infra (build system, linker script, QEMU targets, test harness,
 vector tables) is already done so you spend zero time on setup.
 
-The rule: **do NOT paste in a full solution.** Every file is stubbed with
-the contract, the edge cases, and a spot to write your approach *before*
+Every file is stubbed with the contract, the edge cases, and a spot to write your approach *before*
 you code. The tests define correctness — make them pass.
 
 ## Quickstart
@@ -14,24 +13,6 @@ you code. The tests define correctness — make them pass.
 ./setup.sh                 # installs gcc, arm-none-eabi-gcc, qemu (once)
 cd part1_libc && make test # start here — instant pass/fail loop
 ```
-
-## The five practice disciplines (do these every single time)
-
-These target the specific things that cost you in live coding. Treat them
-as non-negotiable reps, not suggestions:
-
-1. **Write the approach + complexity in the comment block BEFORE coding.**
-   One line. This is the "state your approach first" interview habit.
-2. **Trust the simple version.** Write the byte-by-byte / obvious solution
-   first. Only optimize after it passes. Do not reach for word-copies,
-   fancy structures, or clever tricks up front.
-3. **Test unprompted, on multiple cases.** After it compiles, run it. The
-   harness already gives you edge cases — add your own when you spot a gap.
-4. **When stuck, narrate — don't go silent.** Write your confusion as a
-   comment: "not sure if dst>src needs reverse copy — testing that." Keep
-   moving on paper.
-5. **Verify after coding.** Before declaring done, re-read against the
-   contract and predict which test would fail. Then run it.
 
 ## Parts
 
