@@ -6,9 +6,9 @@ reimplementation, bare-metal startup, an interrupt-driven driver, a
 bootloader, and a context-switching scheduler.
 
 
-```
-## Update: A follow-up project focussed on custom RTOS has been built: https://github.com/Athyo30/Forge-RTOS/tree/main
-```
+
+Update: A follow-up project focussed on custom RTOS has been built: https://github.com/Athyo30/Forge-RTOS/tree/main
+
 ## Structure
 
 ```
